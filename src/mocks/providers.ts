@@ -56,6 +56,11 @@ export class MockCoreBanking implements CoreBanking {
 
   constructor(private readonly opts: { latencyMs?: number } = {}) {}
 
+  // Number of real payouts made (repeat requests don't count). Lets tests prove idempotency.
+  get payoutCount(): number {
+    return this.disbursed.size;
+  }
+
   async disburse(req: { idempotencyKey: string; amount: number; applicantEmail: string }): Promise<DisbursementResult> {
     await sleep(this.opts.latencyMs ?? 0);
     const existing = this.disbursed.get(req.idempotencyKey);
