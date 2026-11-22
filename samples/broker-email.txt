@@ -1,0 +1,11 @@
+Message-ID: <ref-88412@northpoint-brokers.example>
+From: deals@northpoint-brokers.example
+Subject: New referral - auto loan
+
+Applicant: Sam Patel
+Applicant Email: sam.patel@example.com
+Product: Auto
+Amount: $32,500
+Attachments: id, pay_stub
+
+Vehicle: 2024 Toyota RAV4, dealer invoice to follow.

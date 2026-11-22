@@ -1,0 +1,11 @@
+{
+  "id": "app-123",
+  "fullName": "Jane Doe",
+  "email": "jane.doe@example.com",
+  "product": "personal",
+  "amount": 15000,
+  "uploads": [
+    { "type": "id", "url": "s3://uploads/app-123/drivers-licence.pdf" },
+    { "type": "pay_stub", "url": "s3://uploads/app-123/pay-stub-oct.pdf" }
+  ]
+}

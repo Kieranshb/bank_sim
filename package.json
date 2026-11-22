@@ -1,5 +1,5 @@
 {
-  "name": "temporal-hello-world",
+  "name": "bank-sim",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -8,10 +8,15 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",
-    "start": "ts-node src/worker.ts",
-    "start.watch": "nodemon src/worker.ts",
-    "workflow": "ts-node src/client.ts",
-    "test": "mocha --exit --require ts-node/register --require source-map-support/register src/mocha/*.test.ts"
+    "test": "mocha --exit --require ts-node/register --require source-map-support/register src/mocha/*.test.ts",
+    "worker": "ts-node src/worker.ts",
+    "worker.watch": "nodemon src/worker.ts",
+    "portal": "ts-node src/clients/portal.ts",
+    "broker": "ts-node src/clients/broker.ts",
+    "aggregator": "ts-node src/clients/aggregator.ts",
+    "review": "ts-node src/clients/review.ts",
+    "status": "ts-node src/clients/status.ts",
+    "upload-docs": "ts-node src/clients/uploadDocs.ts"
   },
   "nodemonConfig": {
     "execMap": {
@@ -27,8 +32,7 @@
     "@temporalio/client": "^1.25.0",
     "@temporalio/envconfig": "^1.25.0",
     "@temporalio/worker": "^1.25.0",
-    "@temporalio/workflow": "^1.25.0",
-    "nanoid": "3.x"
+    "@temporalio/workflow": "^1.25.0"
   },
   "devDependencies": {
     "@temporalio/testing": "^1.25.0",
@@ -44,5 +48,6 @@
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3",
     "@tsconfig/node20": "^20.0.0"
-  }
+  },
+  "description": "Loan application orchestration on Temporal (case study)"
 }

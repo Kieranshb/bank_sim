@@ -1,37 +1,78 @@
+// Runs all four workers in one process for the demo.
+// In production each would be its own deployment, scaled and secured separately.
+//
+// This is the only file that decides which implementations are real and which are mocked.
 import { NativeConnection, Worker } from '@temporalio/worker';
-import * as activities from './activities';
+import { config } from './config';
+import { TASK_QUEUES } from './shared/taskQueues';
+import {
+  createAuditActivities,
+  createDisbursementActivities,
+  createEnrichmentActivities,
+  createNotificationActivities,
+  createUnderwritingActivities,
+} from './activities';
+import { POLICIES } from './products';
+import {
+  ConsoleNotifier,
+  MockAuditSink,
+  MockCoreBanking,
+  MockCreditBureau,
+  MockFraudProvider,
+  MockIdentityProvider,
+} from './mocks/providers';
 
 async function run() {
-  // Step 1: Establish a connection with Temporal server.
-  //
-  // Worker code uses `@temporalio/worker.NativeConnection`.
-  // (But in your application code it's `@temporalio/client.Connection`.)
-  const connection = await NativeConnection.connect({
-    address: 'localhost:7233',
-    // TLS and gRPC metadata configuration goes here.
-  });
-  try {
-    // Step 2: Register Workflows and Activities with the Worker.
-    const worker = await Worker.create({
-      connection,
-      namespace: 'default',
-      taskQueue: 'hello-world',
-      // Workflows are registered using a path as they run in a separate JS context.
-      workflowsPath: require.resolve('./workflows'),
-      activities,
-    });
+  const connection = await NativeConnection.connect({ address: config.temporalAddress });
+  const { latencyMs } = config.mocks;
 
-    // Step 3: Start accepting tasks on the `hello-world` queue
-    //
-    // The worker runs until it encounters an unexpected error or the process receives a shutdown signal registered on
-    // the SDK Runtime object.
-    //
-    // By default, worker logs are written via the Runtime logger to STDERR at INFO level.
-    //
-    // See https://typescript.temporal.io/api/classes/worker.Runtime#install to customize these defaults.
-    await worker.run();
+  try {
+    const workers = await Promise.all([
+      // Orchestration + lightweight internal activities
+      Worker.create({
+        connection,
+        namespace: config.namespace,
+        taskQueue: TASK_QUEUES.workflow,
+        workflowsPath: require.resolve('./workflows'),
+        activities: {
+          ...createAuditActivities(new MockAuditSink(config.auditLogPath)),
+          ...createNotificationActivities(new ConsoleNotifier()),
+        },
+      }),
+
+      // Third-party calls, rate limited across all enrichment workers
+      // TODO: one queue per provider if they need different rate limits
+      Worker.create({
+        connection,
+        namespace: config.namespace,
+        taskQueue: TASK_QUEUES.enrichment,
+        activities: createEnrichmentActivities({
+          credit: new MockCreditBureau({ latencyMs }),
+          identity: new MockIdentityProvider({ latencyMs, notFoundEmail: config.mocks.identityNotFound }),
+          fraud: new MockFraudProvider({ latencyMs, outage: config.mocks.fraudOutage }),
+        }),
+        maxTaskQueueActivitiesPerSecond: config.enrichmentRatePerSecond,
+      }),
+
+      // Product policies injected here
+      Worker.create({
+        connection,
+        namespace: config.namespace,
+        taskQueue: TASK_QUEUES.underwriting,
+        activities: createUnderwritingActivities(POLICIES),
+      }),
+
+      // Money movement, isolated on its own queue
+      Worker.create({
+        connection,
+        namespace: config.namespace,
+        taskQueue: TASK_QUEUES.disbursement,
+        activities: createDisbursementActivities(new MockCoreBanking({ latencyMs })),
+      }),
+    ]);
+
+    await Promise.all(workers.map((w) => w.run()));
   } finally {
-    // Close the connection once the worker has stopped
     await connection.close();
   }
 }

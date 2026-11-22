@@ -1,0 +1,119 @@
+[
+  {
+    "record_id": "rec-001",
+    "source": "loanhub",
+    "loan_type": "debt_consolidation",
+    "requested_amount_cents": 2200000,
+    "applicant": {
+      "first_name": "Alex",
+      "last_name": "Nguyen",
+      "email": "alex.nguyen@example.com"
+    },
+    "documents": [
+      {
+        "type": "id",
+        "url": "s3://loanhub/rec-001/id.pdf"
+      },
+      {
+        "type": "pay_stub",
+        "url": "s3://loanhub/rec-001/pay_stub.pdf"
+      },
+      {
+        "type": "debt_statements",
+        "url": "s3://loanhub/rec-001/debt_statements.pdf"
+      }
+    ]
+  },
+  {
+    "record_id": "rec-002",
+    "source": "loanhub",
+    "loan_type": "personal",
+    "requested_amount_cents": 4800000,
+    "applicant": {
+      "first_name": "Priya",
+      "last_name": "Shah",
+      "email": "priya.shah@example.com"
+    },
+    "documents": [
+      {
+        "type": "id",
+        "url": "s3://loanhub/rec-002/id.pdf"
+      },
+      {
+        "type": "pay_stub",
+        "url": "s3://loanhub/rec-002/pay_stub.pdf"
+      }
+    ]
+  },
+  {
+    "record_id": "rec-003",
+    "source": "loanhub",
+    "loan_type": "auto",
+    "requested_amount_cents": 1850000,
+    "applicant": {
+      "first_name": "Chris",
+      "last_name": "Martin",
+      "email": "chris.martin@example.com"
+    },
+    "documents": [
+      {
+        "type": "id",
+        "url": "s3://loanhub/rec-003/id.pdf"
+      },
+      {
+        "type": "pay_stub",
+        "url": "s3://loanhub/rec-003/pay_stub.pdf"
+      },
+      {
+        "type": "vehicle_bill_of_sale",
+        "url": "s3://loanhub/rec-003/vehicle_bill_of_sale.pdf"
+      }
+    ]
+  },
+  {
+    "record_id": "rec-004",
+    "source": "loanhub",
+    "loan_type": "debt_consolidation",
+    "requested_amount_cents": 8000000,
+    "applicant": {
+      "first_name": "Morgan",
+      "last_name": "Lee",
+      "email": "morgan.lee@example.com"
+    },
+    "documents": [
+      {
+        "type": "id",
+        "url": "s3://loanhub/rec-004/id.pdf"
+      },
+      {
+        "type": "pay_stub",
+        "url": "s3://loanhub/rec-004/pay_stub.pdf"
+      },
+      {
+        "type": "debt_statements",
+        "url": "s3://loanhub/rec-004/debt_statements.pdf"
+      }
+    ]
+  },
+  {
+    "record_id": "rec-005",
+    "source": "loanhub",
+    "loan_type": "personal",
+    "requested_amount_cents": 1200000,
+    "applicant": {
+      "first_name": "Taylor",
+      "last_name": "Brooks",
+      "email": "taylor.brooks@example.com"
+    },
+    "documents": [
+      {
+        "type": "id",
+        "url": "s3://loanhub/rec-005/id.pdf"
+      },
+      {
+        "type": "pay_stub",
+        "url": "s3://loanhub/rec-005/pay_stub.pdf"
+      }
+    ]
+  }
+]
