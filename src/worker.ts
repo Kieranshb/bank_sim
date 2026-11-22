@@ -41,7 +41,7 @@ async function run() {
       }),
 
       // Third-party calls, rate limited across all enrichment workers
-      // TODO: one queue per provider if they need different rate limits
+      // Production: one queue per provider, since each has its own rate limit
       Worker.create({
         connection,
         namespace: config.namespace,

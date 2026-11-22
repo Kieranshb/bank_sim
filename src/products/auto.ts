@@ -23,6 +23,6 @@ export const autoPolicy: ProductPolicy = {
     if (credit.score >= APPROVE_AT) return decide('approve', `Credit score ${credit.score} >= ${APPROVE_AT}`);
     if (credit.score >= REFER_AT) return decide('refer', `Credit score ${credit.score} in review band ${REFER_AT}-${APPROVE_AT - 1}`);
     return decide('decline', `Credit score ${credit.score} < ${REFER_AT}`);
-    // TODO (next version): loan-to-value check once the bill of sale is parsed
+    // Next version (auto-v2): loan-to-value check once the bill of sale is parsed
   },
 };

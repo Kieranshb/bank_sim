@@ -11,5 +11,5 @@ export const documentsUploadedSignal = defineSignal<[LoanDocument[]]>('documents
 // Current state for the console / CLI
 export const getStatusQuery = defineQuery<ApplicationState>('getStatus');
 
-// TODO (optional): use an Update instead of a signal for submitDecision so the
+// Next step: use an Update instead of a signal for submitDecision so the
 // reviewer gets a validated response (e.g. reject a decision if not IN_REVIEW).

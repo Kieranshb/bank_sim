@@ -26,6 +26,6 @@ export const debtConsolidationPolicy: ProductPolicy = {
     if (credit.score >= APPROVE_AT) return decide('approve', `Credit score ${credit.score} >= ${APPROVE_AT}`);
     if (credit.score >= REFER_AT) return decide('refer', `Credit score ${credit.score} in review band ${REFER_AT}-${APPROVE_AT - 1}`);
     return decide('decline', `Credit score ${credit.score} < ${REFER_AT}`);
-    // TODO (next version): post-consolidation debt-to-income from debt_statements
+    // Next version (debt-consolidation-v2): post-consolidation debt-to-income from debt_statements
   },
 };

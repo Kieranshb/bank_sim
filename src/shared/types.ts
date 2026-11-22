@@ -22,7 +22,7 @@ export type ApplicationStatus =
 export interface Applicant {
   name: string;
   email: string;
-  // TODO: dob, address, income, employment
+  // Trimmed to what the demo needs; production adds date of birth, address, income, employment
 }
 
 export interface LoanDocument {

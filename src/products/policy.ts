@@ -5,7 +5,7 @@ import type { EnrichmentResult, LoanApplication, LoanProduct, UnderwritingOutcom
 export interface ProductPolicy {
   version: string; // recorded on every decision for audit
   requiredDocuments: string[];
-  // TODO: risk thresholds (min credit score, max DTI, max amount, ...)
+  // Thresholds (credit bands, amount cap) are constants inside each policy file, versioned with it
   evaluate(app: LoanApplication, enrichment: EnrichmentResult): UnderwritingOutcome;
 }
 

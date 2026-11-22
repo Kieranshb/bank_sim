@@ -3,6 +3,7 @@
 //        npm run status -- --query 'ApplicationStatus="IN_REVIEW"'
 import { getClient, runMain } from '../client';
 import { getStatusQuery } from '../shared/signals';
+import { APPLICATION_STATUS, LOAN_PRODUCT } from '../shared/searchAttributes';
 
 runMain(async () => {
   const args = process.argv.slice(2);
@@ -11,8 +12,9 @@ runMain(async () => {
   if (args[0] === '--query') {
     const query = args[1] ?? '';
     for await (const wf of client.workflow.list({ query })) {
-      const status = wf.searchAttributes?.ApplicationStatus?.[0] ?? '-';
-      console.log(`${wf.workflowId.padEnd(40)} ${String(status).padEnd(20)} ${wf.status.name}`);
+      const status = wf.typedSearchAttributes.get(APPLICATION_STATUS) ?? '-';
+      const product = wf.typedSearchAttributes.get(LOAN_PRODUCT) ?? '-';
+      console.log(`${wf.workflowId.padEnd(45)} ${status.padEnd(20)} ${product.padEnd(20)} ${wf.status.name}`);
     }
     return;
   }

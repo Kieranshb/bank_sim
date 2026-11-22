@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
-# Register custom search attributes on the local dev server.
+# Register the custom search attributes the workflow sets. Safe to re-run.
 # Prereq (separate terminal): temporal server start-dev
-set -euo pipefail
+set -uo pipefail
 
-temporal operator search-attribute create --name ApplicationStatus --type Keyword
-temporal operator search-attribute create --name LoanProduct --type Keyword
-temporal operator search-attribute create --name Channel --type Keyword
-# TODO: SlaDeadline (Datetime) for "past 36h and not funded" queries
+for attr in ApplicationStatus LoanProduct Channel; do
+  if temporal operator search-attribute create --name "$attr" --type Keyword >/dev/null 2>&1; then
+    echo "registered $attr"
+  else
+    echo "$attr already registered (or server not running)"
+  fi
+done
