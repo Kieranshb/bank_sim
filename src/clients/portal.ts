@@ -2,6 +2,7 @@
 // Usage: npm run portal [-- samples/portal-form.json]
 import { readFile } from 'fs/promises';
 import { getClient, runMain, startApplication } from '../client';
+import { dollarsToCents } from '../shared/money';
 import type { LoanApplication, LoanProduct } from '../shared/types';
 
 export interface PortalForm {
@@ -9,7 +10,7 @@ export interface PortalForm {
   fullName: string;
   email: string;
   product: LoanProduct;
-  amount: number;
+  amount: string; // as typed into the form, e.g. "15000.00"
   uploads: { type: string; url: string }[];
 }
 
@@ -18,7 +19,7 @@ export function fromPortal(form: PortalForm): LoanApplication {
     channel: 'portal',
     externalId: form.id,
     product: form.product,
-    amount: form.amount,
+    amountCents: dollarsToCents(form.amount),
     applicant: { name: form.fullName, email: form.email },
     documents: form.uploads.map((u) => ({ type: u.type, uri: u.url })),
   };

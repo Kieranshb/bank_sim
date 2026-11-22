@@ -4,6 +4,17 @@ How I approached the case study, in the order I worked. I used Claude as a pair 
 for scaffolding, explaining Temporal concepts I hadn't used before, drafting code and tests, and
 reviewing decisions. I made the design calls and checked every piece by running it.
 
+## Time
+
+About 2.5 to 3 hours of my own time, spread over a few sessions, against a suggested 2. Claude wrote
+most of the code and documentation. My time went on directing it: shaping the architecture and
+trade-offs, steering its first drafts (injecting the product policies rather than importing them,
+moving hard-coded defaults into one config file), questioning choices before accepting them (where
+types should live, whether to test every combination of channel, product and outcome), having the
+finished repo reviewed as an interviewer would and fixing what that found, and running everything. I
+went slightly past the timebox on purpose to get the failure paths and their tests right, since
+those are where a lending workflow is judged.
+
 ## 1. Read the brief and decide what to ask
 
 - Requirements that drive the design: three channels, every application terminal, auditable
@@ -11,8 +22,8 @@ reviewing decisions. I made the design calls and checked every piece by running 
 - One genuine ambiguity: "escalated" is listed as terminal, but review should resume. I emailed
   the question, didn't hear back over the weekend, and designed for both readings: review is a
   pause (`IN_REVIEW`), escalation is the terminal hand-off on timeout.
-- Kept to TypeScript (my strongest language) and the 2-hour spirit: one workflow that runs locally,
-  mocks instead of real providers, documentation over infrastructure.
+- Kept to TypeScript (my strongest language) and a small scope: one workflow that runs locally,
+  mocks instead of real providers, documentation over infrastructure (no UI, no Docker).
 
 ## 2. Map the design onto Temporal
 
@@ -53,5 +64,28 @@ reviewing decisions. I made the design calls and checked every piece by running 
 
 ## 6. Verify and document
 
-- 50 tests: policies, activities, workflows on a real dev server, provider failures.
 - `scripts/demo.sh` walks through every path; the README covers design, trade-offs and next steps.
+
+## 7. Review as an interviewer, then fix
+
+I had the finished repo reviewed against the brief as if by an interview panel, then fixed what it
+found rather than just documenting it:
+
+- **A provider outage could end in a loan funded without a fraud check** (outage, then review, then
+  approve). Now a reviewer can only retry the missing check or decline; approve isn't offered on
+  incomplete data, and the workflow ignores it if sent.
+- **Escalation was a dead end.** Now a review timeout alerts a supervisor and the application stays
+  decidable; it only completes as `ESCALATED` when the supervisor window expires, and ops is alerted.
+- **A provider rejecting our request (a 4xx) was treated as an outage** and sent to underwriting
+  review. Now it's its own failure class, escalated straight to ops.
+- **`finish()` wasn't truly the only exit:** an unknown product or an activity out of retries would
+  have left a Failed workflow. Added validation and a top-level catch-all, and made sure deliberate
+  cancellation still passes through.
+- **Money was a float** in one adapter. Now it's integer cents end to end.
+- **Audit writes could duplicate** on retry and didn't record decision inputs. Now each event has an
+  idempotency key and underwriting records what it decided on.
+- Code quality: an `enrichAll()` helper without casts, a shared `createWorkers()` for production and
+  tests, documents kept in workflow state, `policyVersion` stamped in one place, and a replay test.
+
+59 tests now cover policies, money, activities, every workflow path on a real dev server, provider
+failures, an unexpected failure, and replay determinism.

@@ -1,6 +1,8 @@
-// Translates provider failures into Temporal's retry semantics.
-// Transient (timeouts, 429, 5xx): rethrow, so the activity retry policy kicks in.
-// Permanent (4xx such as "not found"): non-retryable, so the workflow can act on it immediately.
+// Translates provider failures into Temporal's retry semantics, in three classes:
+//   transient (timeouts, 429, 5xx)  -> rethrow, so the activity retry policy backs off and retries
+//   not found (404)                 -> non-retryable `${provider}NotFound`: an answer, not a failure
+//   rejected (other 4xx)            -> non-retryable `${provider}Rejected`: our request is wrong, so ops
+//                                      needs to look; it isn't an outage and isn't an underwriting question
 import { ApplicationFailure } from '@temporalio/activity';
 
 export class ProviderError extends Error {
@@ -23,7 +25,8 @@ export async function callProvider<T>(fn: () => Promise<T>): Promise<T> {
     return await fn();
   } catch (err) {
     if (err instanceof ProviderError && !err.retryable) {
-      throw ApplicationFailure.nonRetryable(err.message, `${err.provider}Rejected`, { status: err.status });
+      const kind = err.status === 404 ? 'NotFound' : 'Rejected';
+      throw ApplicationFailure.nonRetryable(err.message, `${err.provider}${kind}`, { status: err.status });
     }
     throw err;
   }

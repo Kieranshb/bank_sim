@@ -3,7 +3,8 @@
 
 export type Channel = 'portal' | 'broker' | 'aggregator';
 
-export type LoanProduct = 'personal' | 'auto' | 'debt_consolidation';
+export const LOAN_PRODUCTS = ['personal', 'auto', 'debt_consolidation'] as const;
+export type LoanProduct = (typeof LOAN_PRODUCTS)[number];
 
 export type ApplicationStatus =
   | 'RECEIVED'
@@ -12,12 +13,15 @@ export type ApplicationStatus =
   | 'ENRICHING'
   | 'UNDERWRITING'
   | 'IN_REVIEW'
-  | 'APPROVED'
   | 'DISBURSING'
   // terminal states
   | 'FUNDED'
   | 'DECLINED'
+  // Escalated to a supervisor. While the workflow is still running a decision is still accepted;
+  // once the supervisor window expires (or ops must step in) the workflow completes in this state.
   | 'ESCALATED';
+
+export type TerminalStatus = 'FUNDED' | 'DECLINED' | 'ESCALATED';
 
 export interface Applicant {
   name: string;
@@ -34,7 +38,7 @@ export interface LoanApplication {
   channel: Channel;
   externalId: string; // portal app id, email messageId, aggregator record id
   product: LoanProduct;
-  amount: number;
+  amountCents: number; // integer cents, see shared/money.ts
   applicant: Applicant;
   documents: LoanDocument[];
   broker?: string;
@@ -59,14 +63,21 @@ export interface EnrichmentResult {
   fraud: FraudResult;
 }
 
-export interface UnderwritingOutcome {
+// What a policy decides. The underwriting activity stamps the policy version onto it.
+export interface PolicyDecision {
   result: 'approve' | 'decline' | 'refer';
   reasons: string[];
+}
+
+export interface UnderwritingOutcome extends PolicyDecision {
   policyVersion: string;
 }
 
+// 'retry' re-runs enrichment; only offered when a provider was unavailable (never 'approve' then)
+export type DecisionChoice = 'approve' | 'decline' | 'retry';
+
 export interface ReviewDecision {
-  decision: 'approve' | 'decline';
+  decision: DecisionChoice;
   reviewer: string;
   reason: string;
   decidedAt: string; // ISO timestamp, set by the client
@@ -76,18 +87,32 @@ export interface ReviewDecision {
 export interface ApplicationState {
   status: ApplicationStatus;
   history: { status: ApplicationStatus; at: string }[];
+  documents: LoanDocument[]; // as submitted, plus uploads
   missingDocuments: string[];
   enrichment?: EnrichmentResult;
   unavailableProviders?: string[];
   underwriting?: UnderwritingOutcome;
+  reviewReasons?: string[]; // why a human is looking at it
+  reviewOptions?: DecisionChoice[]; // decisions accepted right now (only while waiting)
   review?: ReviewDecision;
   disbursementRef?: string;
   outcomeReason?: string; // why it reached its terminal state
 }
 
+export type AuditEventType =
+  | 'UNDERWRITING_DECISION'
+  | 'ENRICHMENT_INCOMPLETE'
+  | 'PROVIDER_REJECTED'
+  | 'ESCALATED_TO_SUPERVISOR'
+  | 'REVIEW_DECISION'
+  | 'APPROVED'
+  | 'DISBURSED'
+  | TerminalStatus;
+
 export interface AuditEvent {
+  eventId: string; // workflowId:sequence, so a retried audit write is recognised as a duplicate
   workflowId: string;
-  type: string; // e.g. 'UNDERWRITING_DECISION', 'REVIEW_DECISION', 'DISBURSED'
+  type: AuditEventType;
   actor: 'system' | string; // 'system' or reviewer id
   payload: unknown;
   policyVersion?: string;

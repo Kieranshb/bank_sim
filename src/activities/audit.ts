@@ -3,6 +3,8 @@
 import type { AuditEvent } from '../shared/types';
 
 export interface AuditSink {
+  // Must be idempotent on event.eventId: activities are at-least-once, so a write can be retried
+  // after it actually succeeded (e.g. the worker crashed before reporting completion)
   append(event: AuditEvent & { recordedAt: string }): Promise<void>;
 }
 

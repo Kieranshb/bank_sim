@@ -9,14 +9,14 @@ export interface DisbursementResult {
 
 export interface CoreBanking {
   // Same idempotencyKey must always return the same reference and never pay twice
-  disburse(req: { idempotencyKey: string; amount: number; applicantEmail: string }): Promise<DisbursementResult>;
+  disburse(req: { idempotencyKey: string; amountCents: number; applicantEmail: string }): Promise<DisbursementResult>;
 }
 
 export function createDisbursementActivities(coreBanking: CoreBanking) {
   return {
     async disburseLoan(app: LoanApplication, idempotencyKey: string): Promise<DisbursementResult> {
       return callProvider(() =>
-        coreBanking.disburse({ idempotencyKey, amount: app.amount, applicantEmail: app.applicant.email }),
+        coreBanking.disburse({ idempotencyKey, amountCents: app.amountCents, applicantEmail: app.applicant.email }),
       );
     },
   };

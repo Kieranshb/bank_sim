@@ -9,7 +9,7 @@ import type { LoanApplication, LoanProduct } from '../shared/types';
 export interface AggregatorRecord {
   record_id: string; // used as externalId
   source: string; // aggregator name
-  loan_type: LoanProduct;
+  loan_type: LoanProduct; // unchecked here: the workflow's validation rejects unknown products
   requested_amount_cents: number;
   applicant: { first_name: string; last_name: string; email: string };
   documents: { type: string; url: string }[];
@@ -20,7 +20,7 @@ export function fromAggregator(record: AggregatorRecord): LoanApplication {
     channel: 'aggregator',
     externalId: `${record.source}-${record.record_id}`,
     product: record.loan_type,
-    amount: record.requested_amount_cents / 100,
+    amountCents: record.requested_amount_cents, // already integer cents; the workflow validates it
     applicant: {
       name: `${record.applicant.first_name} ${record.applicant.last_name}`,
       email: record.applicant.email,

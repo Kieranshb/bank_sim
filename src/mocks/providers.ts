@@ -10,6 +10,7 @@ import type { CoreBanking, DisbursementResult } from '../activities/disbursement
 import type { AuditSink } from '../activities/audit';
 import type { Notifier } from '../activities/notifications';
 import { ProviderError } from '../activities/providerErrors';
+import { formatCents } from '../shared/money';
 import type { AuditEvent, CreditReport, FraudResult, IdentityResult, LoanApplication } from '../shared/types';
 import { scenarioFor } from './scenarios';
 
@@ -61,7 +62,7 @@ export class MockCoreBanking implements CoreBanking {
     return this.disbursed.size;
   }
 
-  async disburse(req: { idempotencyKey: string; amount: number; applicantEmail: string }): Promise<DisbursementResult> {
+  async disburse(req: { idempotencyKey: string; amountCents: number; applicantEmail: string }): Promise<DisbursementResult> {
     await sleep(this.opts.latencyMs ?? 0);
     const existing = this.disbursed.get(req.idempotencyKey);
     if (existing) {
@@ -70,17 +71,23 @@ export class MockCoreBanking implements CoreBanking {
     }
     const result = { reference: `DISB-${randomUUID().slice(0, 8).toUpperCase()}` };
     this.disbursed.set(req.idempotencyKey, result);
-    console.log(`[core-banking] disbursed $${req.amount} to ${req.applicantEmail} (${result.reference})`);
+    console.log(`[core-banking] disbursed ${formatCents(req.amountCents)} to ${req.applicantEmail} (${result.reference})`);
     return result;
   }
 }
 
 export class MockAuditSink implements AuditSink {
+  // Idempotency: a retried write with the same eventId is ignored. In-memory for the demo;
+  // a real audit store enforces this with a unique constraint on eventId.
+  private readonly written = new Set<string>();
+
   constructor(private readonly path: string) {}
 
   // Append-only JSON lines: one decision per line, never rewritten
   async append(event: AuditEvent & { recordedAt: string }): Promise<void> {
+    if (this.written.has(event.eventId)) return;
     await appendFile(this.path, JSON.stringify(event) + '\n');
+    this.written.add(event.eventId);
   }
 }
 

@@ -3,6 +3,7 @@
 // Usage: npm run broker [-- samples/broker-email.txt]
 import { readFile } from 'fs/promises';
 import { getClient, runMain, startApplication } from '../client';
+import { dollarsToCents } from '../shared/money';
 import type { LoanApplication, LoanProduct } from '../shared/types';
 
 export interface BrokerEmail {
@@ -37,7 +38,7 @@ export function fromBrokerEmail(email: BrokerEmail): LoanApplication {
     externalId: email.messageId,
     broker: email.from,
     product,
-    amount: Number(field(email.body, 'Amount').replace(/[$,]/g, '')),
+    amountCents: dollarsToCents(field(email.body, 'Amount')),
     applicant: { name: field(email.body, 'Applicant'), email: field(email.body, 'Applicant Email') },
     // Attachments line lists document types; uri points back at the email they came with
     documents: (optionalField(email.body, 'Attachments') ?? '')

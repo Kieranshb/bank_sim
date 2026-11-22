@@ -7,13 +7,14 @@ import { POLICIES } from '../products';
 import { SCENARIOS } from '../mocks/scenarios';
 import { createUnderwritingActivities } from '../activities/underwriting';
 import { loadSampleApplications } from './samples';
-import type { EnrichmentResult, FraudResult, LoanApplication, LoanProduct, UnderwritingOutcome } from '../shared/types';
+import type { EnrichmentResult, FraudResult, LoanApplication, LoanProduct, PolicyDecision } from '../shared/types';
 
-const app = (product: LoanProduct, amount: number): LoanApplication => ({
+// Amounts in the table are whole dollars for readability; the application carries integer cents
+const app = (product: LoanProduct, dollars: number): LoanApplication => ({
   channel: 'portal',
   externalId: 'test',
   product,
-  amount,
+  amountCents: dollars * 100,
   applicant: { name: 'Test', email: 'test@example.com' },
   documents: [],
 });
@@ -24,7 +25,7 @@ const enrichment = (score: number, fraud: FraudResult['riskLevel'] = 'low', veri
   fraud: { riskLevel: fraud },
 });
 
-type Case = [LoanProduct, number, number, FraudResult['riskLevel'], boolean, UnderwritingOutcome['result']];
+type Case = [LoanProduct, number, number, FraudResult['riskLevel'], boolean, PolicyDecision['result']];
 
 // product, amount, score, fraud, identity verified, expected
 const CASES: Case[] = [
@@ -58,10 +59,14 @@ describe('product policies', () => {
     it(`${product} $${amount} score ${score} fraud ${fraud}${verified ? '' : ' unverified'} -> ${expected}`, () => {
       const outcome = POLICIES[product].evaluate(app(product, amount), enrichment(score, fraud, verified));
       assert.equal(outcome.result, expected);
-      assert.equal(outcome.policyVersion, POLICIES[product].version);
       assert.ok(outcome.reasons.length > 0, 'every decision carries a reason');
     });
   }
+
+  it('amount cap messages format integer cents as dollars', () => {
+    const outcome = POLICIES.auto.evaluate(app('auto', 75_001), enrichment(800));
+    assert.equal(outcome.reasons[0], 'Amount $75,001 exceeds auto max $75,000');
+  });
 
   it('identity failure wins over fraud and credit', () => {
     const outcome = POLICIES.personal.evaluate(app('personal', 15_000), enrichment(800, 'high', false));
@@ -82,7 +87,8 @@ describe('demo scenarios match the samples and policies', () => {
     const gaps = scenario.missingDocuments ?? [];
 
     it(`${email} has its required documents${gaps.length ? ` except ${gaps.join(', ')}` : ''}`, async () => {
-      assert.deepEqual(await underwriting.missingDocuments(samples[email]), gaps);
+      const app = samples[email];
+      assert.deepEqual(await underwriting.missingDocuments(app.product, app.documents.map((d) => d.type)), gaps);
     });
 
     it(`${email} -> ${scenario.expect}`, () => {
