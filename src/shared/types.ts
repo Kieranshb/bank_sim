@@ -72,9 +72,17 @@ export interface ReviewDecision {
   decidedAt: string; // ISO timestamp, set by the client
 }
 
+// Everything an operator needs to see, exposed by the getStatus query
 export interface ApplicationState {
   status: ApplicationStatus;
-  // TODO: missingDocuments, enrichment, underwriting, review, disbursementRef, history
+  history: { status: ApplicationStatus; at: string }[];
+  missingDocuments: string[];
+  enrichment?: EnrichmentResult;
+  unavailableProviders?: string[];
+  underwriting?: UnderwritingOutcome;
+  review?: ReviewDecision;
+  disbursementRef?: string;
+  outcomeReason?: string; // why it reached its terminal state
 }
 
 export interface AuditEvent {
