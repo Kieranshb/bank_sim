@@ -17,7 +17,8 @@ the audit store are deterministic mocks behind the same interfaces real clients 
 - [Workflow design](#workflow-design) · [Activity design](#activity-design) · [Human in the loop](#human-in-the-loop)
 - [Ingestion](#ingestion) · [Failure handling](#failure-handling) · [Product isolation](#product-isolation)
 - [Observability and audit](#observability-and-audit) · [Testing](#testing)
-- [Trade-offs](#trade-offs) · [Production concerns](#production-concerns) · [What I'd do next](#what-id-do-next)
+- [Trade-offs](#trade-offs) · [Production concerns](#production-concerns) · [Deploying to AWS](#deploying-to-aws)
+- [What I'd do next](#what-id-do-next)
 - [Repo layout](#repo-layout)
 
 ## Quick start
@@ -455,6 +456,72 @@ Things I deliberately left out of the exercise but would expect to be asked abou
 - **What breaks first at 50k a month.** Not Temporal: reviewer capacity and per-provider rate
   limits. Both are visible today through the `IN_REVIEW` queue size and enrichment retry counts.
 
+## Deploying to AWS
+
+A proposed plan, not something built or tested in this repo. The code is mostly shaped for it
+already: workers are built by one function (`createWorkers()`), all settings come from `config.ts`,
+and mocks are swapped for real clients in one file (`worker.ts`).
+
+**1. Temporal.** Use Temporal Cloud rather than self-hosting: no database, visibility store or
+upgrades to run. Create a namespace per environment, connect over AWS PrivateLink, and
+authenticate workers with an API key or mTLS certificates kept in AWS Secrets Manager. Register the
+three search attributes as part of environment setup (the cloud equivalent of `scripts/setup.sh`).
+Self-hosting is possible on EKS with the Temporal Helm chart, Aurora PostgreSQL and OpenSearch, but
+it's a platform to operate in its own right.
+
+**2. Workers.** Build one container image and push it to ECR. Run it as four ECS Fargate services,
+one per task queue. Today `worker.ts` starts all four workers in one process, so the one code change
+is a `WORKER_QUEUE` environment variable that picks which one this service runs:
+
+| Service | Scales on | Network and IAM |
+|---|---|---|
+| Workflow worker | Workflow task backlog | Temporal, the audit store and notifications (SES, SNS) |
+| Enrichment worker | Activity backlog; capped by the provider rate limit | Egress to credit, identity and fraud providers |
+| Underwriting worker | Activity backlog | Temporal only; no external access |
+| Disbursement worker | Fixed small count | The only service allowed to reach core banking |
+
+Autoscale on task queue backlog or schedule-to-start latency, both exported by the Temporal SDK as
+metrics. All services run in private subnets; only the enrichment and disbursement workers get
+outbound routes beyond Temporal.
+
+*Alternative: Lambda.* Temporal's Serverless Workers (`@temporalio/lambda-worker`) let Temporal
+Cloud invoke a worker on AWS Lambda only when tasks arrive, with no long-running process. Long
+waits (review, documents) cost nothing, because a waiting workflow isn't running. Enrichment and
+underwriting, which are short and bursty, are a good fit, and the workflow worker would work too.
+I'd keep disbursement on a small always-on ECS service, since core banking connections usually
+need stable networking and IP allowlisting. Serverless Workers are still pre-release for
+TypeScript, so I'd start on ECS and move the bursty workers once the feature is generally available.
+
+**3. Configuration and secrets.** Environment variables per service map onto `config.ts`; provider
+credentials, the Temporal API key and core banking credentials come from Secrets Manager, scoped
+per service by IAM task role.
+
+**4. Real dependencies behind the existing interfaces.**
+- Audit store: DynamoDB with a conditional write on `eventId` (idempotent), streamed to S3 with
+  Object Lock for an immutable long-term record.
+- Notifications: SES for applicants, SNS or Slack for the review, supervisor and ops queues.
+- Providers and core banking: HTTP clients implementing `CreditBureau`, `IdentityProvider`,
+  `FraudProvider` and `CoreBanking`, injected in `worker.ts`.
+
+**5. Ingestion channels.**
+- Portal: an API on API Gateway and Lambda (or ECS) calling `startApplication()`.
+- Broker email: SES inbound to S3, a Lambda parses it and starts the workflow.
+- Aggregator batches: files land in S3, an event starts a `BatchIngestWorkflow` per file.
+- Review console: an internal app behind Cognito, sending the reviewer's identity with each
+  decision.
+
+**6. Data protection.** Encrypt workflow payloads with a payload codec backed by AWS KMS, and run a
+codec server so the Temporal Web UI can still show decrypted data to authorised staff.
+
+**7. Shipping changes.** CI builds the image, runs the tests, and runs the replay test against
+histories recorded from the previous release. Deploy with Temporal worker versioning so in-flight
+workflows finish on the build they started on, and roll out in order: activity workers first, then
+the workflow worker, then the clients that start new workflows.
+
+**8. Monitoring.** Export SDK metrics to CloudWatch (or Prometheus and Grafana), and alarm on
+activity failure rate per queue, schedule-to-start latency, the size of the review and supervisor
+queues, and applications approaching the 48-hour target.
+
 ## What I'd do next
 
 - One task queue and rate limit per provider, and honour `Retry-After` on 429s.
@@ -465,7 +532,7 @@ Things I deliberately left out of the exercise but would expect to be asked abou
 - Loan-to-value checks for auto and post-consolidation DTI for debt consolidation, as new policy
   versions with their own enrichment.
 - A reviewer UI on top of the existing signals and queries.
-- Docker Compose with one service per worker, plus metrics and alerting.
+- A Dockerfile and Docker Compose with one service per worker, as the first step towards the AWS plan above.
 
 ## Repo layout
 
